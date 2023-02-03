@@ -15,14 +15,14 @@ terraform {
 }
 
 provider "libvirt" {
-  uri = "qemu+ssh://root@kvmhost.example.com:53330/system"    
+  uri = "qemu+ssh://emrah@kvmhost.example.com:53330/system"    
 }
 
 resource "libvirt_volume" "centos7-qcow2" {
   name = "centos7.qcow2"
   pool = "default" # List storage pools using virsh pool-list
   #source = "https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud.qcow2"
-  source = "/opt/CentOS-7-x86_64-GenericCloud.qcow2"
+  source = "/opt/kvm_images/CentOS-7-x86_64-GenericCloud.qcow2"
   format = "qcow2"
 }
 
@@ -55,6 +55,6 @@ resource "libvirt_domain" "centos7" {
 }
 
 # Output Server IP
-output "ip" {
-  value = "${libvirt_domain.centos7.network_interface.0.addresses.0}"
-}
+# output "ip" {
+#   value = "${libvirt_domain.centos7.network_interface.0.addresses.0}"
+# }
