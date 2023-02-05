@@ -23,54 +23,57 @@ provider "libvirt" {
 }
 
 provider "template" {
-
-}
-
-data "template_file" "user_data" {
-  count = length(var.hostname)
-  template = file("${path.module}/cloud_init.cfg")
-  vars = {
-    hostname = element(var.hostname, count.index)
-    fqdn = "${var.hostname[count.index]}.${var.domain}"
-  }
 }
 
 resource "random_pet" "this" {
   length = 2
 }
 
-resource "libvirt_cloudinit_disk" "commoninit" {
-  count = length(var.hostname)
-  name = "${var.hostname[count.index]}-commoninit.iso"
-  user_data = data.template_file.user_data[count.index].rendered
+# Load Balancers
+data "template_file" "lb_user_data" {
+  count = length(var.lb_hostname)
+  template = file("${path.module}/cloud_init.cfg")
+  vars = {
+    hostname = element(var.lb_hostname, count.index)
+    fqdn = "${var.lb_hostname[count.index]}.${var.domain}"
+  }
 }
 
-resource "libvirt_volume" "ubuntu2204-qcow2" {
-  count = length(var.hostname)
-  name = "ubuntu2204-qcow2.${var.hostname[count.index]}"
+resource "libvirt_cloudinit_disk" "lb_commoninit" {
+  count = length(var.lb_hostname)
+  name = "${var.lb_hostname[count.index]}-commoninit.iso"
+  user_data = data.template_file.lb_user_data[count.index].rendered
+  network_config =   templatefile("${path.module}/network_config.cfg", {
+     interface = var.interface
+     ip_addr   = var.lb_ips[count.index]
+  })
+}
+
+resource "libvirt_volume" "lb_ubuntu2204-qcow2" {
+  count = length(var.lb_hostname)
+  name = "ubuntu2204-qcow2.${var.lb_hostname[count.index]}"
   pool = "default"
   source = var.img_path
   format = "qcow2"
 }
 
-# Define KVM domain to create
-resource "libvirt_domain" "ubuntu2204" {
-  count = length(var.hostname)
-  name = "${var.hostname[count.index]}"
-  memory = "2048"
-  vcpu   = 2
+resource "libvirt_domain" "load_balancer" {
+  count = length(var.lb_hostname)
+  name = "${var.lb_hostname[count.index]}"
+  memory = var.lb_memory
+  vcpu   = var.lb_vcpu
   qemu_agent  = "true"
   
   network_interface {
     network_name = "default"
-    addresses    = [var.ips[count.index]]
+    addresses    = [var.lb_ips[count.index]]
   }
 
   disk {
-    volume_id = element(libvirt_volume.ubuntu2204-qcow2.*.id, count.index)
+    volume_id = element(libvirt_volume.lb_ubuntu2204-qcow2.*.id, count.index)
   }
 
-  cloudinit = libvirt_cloudinit_disk.commoninit[count.index].id
+  cloudinit = libvirt_cloudinit_disk.lb_commoninit[count.index].id
 
   console {
     type = "pty"
@@ -85,6 +88,127 @@ resource "libvirt_domain" "ubuntu2204" {
   }
 }
 
-output "ip" {
-  value = libvirt_domain.ubuntu2204.*.network_interface.0.addresses
+
+# application servers
+data "template_file" "app_user_data" {
+  count = length(var.app_hostname)
+  template = file("${path.module}/cloud_init.cfg")
+  vars = {
+    hostname = element(var.app_hostname, count.index)
+    fqdn = "${var.app_hostname[count.index]}.${var.domain}"
+  }
+}
+
+resource "libvirt_cloudinit_disk" "app_commoninit" {
+  count = length(var.app_hostname)
+  name = "${var.app_hostname[count.index]}-commoninit.iso"
+  user_data = data.template_file.app_user_data[count.index].rendered
+}
+
+resource "libvirt_volume" "app_ubuntu2204-qcow2" {
+  count = length(var.app_hostname)
+  name = "ubuntu2204-qcow2.${var.app_hostname[count.index]}"
+  pool = "default"
+  source = var.img_path
+  format = "qcow2"
+}
+
+resource "libvirt_domain" "application_server" {
+  count = length(var.app_hostname)
+  name = "${var.app_hostname[count.index]}"
+  memory = var.app_memory
+  vcpu   = var.app_vcpu
+  qemu_agent  = "true"
+  
+  network_interface {
+    network_name = "default"
+    addresses    = [var.app_ips[count.index]]
+  }
+
+  disk {
+    volume_id = element(libvirt_volume.app_ubuntu2204-qcow2.*.id, count.index)
+  }
+
+  cloudinit = libvirt_cloudinit_disk.app_commoninit[count.index].id
+
+  console {
+    type = "pty"
+    target_type = "serial"
+    target_port = "0"
+  }
+
+  graphics {
+    type = "spice"
+    listen_type = "address"
+    autoport = true
+  }
+}
+
+
+# database servers
+data "template_file" "db_user_data" {
+  count = length(var.db_hostname)
+  template = file("${path.module}/cloud_init.cfg")
+  vars = {
+    hostname = element(var.db_hostname, count.index)
+    fqdn = "${var.db_hostname[count.index]}.${var.domain}"
+  }
+}
+
+resource "libvirt_cloudinit_disk" "db_commoninit" {
+  count = length(var.db_hostname)
+  name = "${var.db_hostname[count.index]}-commoninit.iso"
+  user_data = data.template_file.db_user_data[count.index].rendered
+}
+
+resource "libvirt_volume" "db_ubuntu2204-qcow2" {
+  count = length(var.db_hostname)
+  name = "ubuntu2204-qcow2.${var.db_hostname[count.index]}"
+  pool = "default"
+  source = var.img_path
+  format = "qcow2"
+}
+
+resource "libvirt_domain" "database_server" {
+  count = length(var.db_hostname)
+  name = "${var.db_hostname[count.index]}"
+  memory = var.db_memory
+  vcpu   = var.db_vcpu
+  qemu_agent  = "true"
+  
+  network_interface {
+    network_name = "default"
+    addresses    = [var.db_ips[count.index]]
+  }
+
+  disk {
+    volume_id = element(libvirt_volume.db_ubuntu2204-qcow2.*.id, count.index)
+  }
+
+  cloudinit = libvirt_cloudinit_disk.db_commoninit[count.index].id
+
+  console {
+    type = "pty"
+    target_type = "serial"
+    target_port = "0"
+  }
+
+  graphics {
+    type = "spice"
+    listen_type = "address"
+    autoport = true
+  }
+}
+
+
+output "lb_ip" {
+  value = libvirt_domain.load_balancer.*.network_interface.0.addresses
+}
+
+output "app_ip" {
+  value = libvirt_domain.application_server.*.network_interface.0.addresses
+}
+
+output "db_ip" {
+  value = libvirt_domain.database_server.*.network_interface.0.addresses
 }
