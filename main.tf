@@ -29,6 +29,7 @@ resource "random_pet" "this" {
   length = 2
 }
 
+
 # Load Balancers
 data "template_file" "lb_user_data" {
   count = length(var.lb_hostname)
@@ -103,6 +104,10 @@ resource "libvirt_cloudinit_disk" "app_commoninit" {
   count = length(var.app_hostname)
   name = "${var.app_hostname[count.index]}-commoninit.iso"
   user_data = data.template_file.app_user_data[count.index].rendered
+  network_config =   templatefile("${path.module}/network_config.cfg", {
+    interface = var.interface
+    ip_addr   = var.app_ips[count.index]
+  })
 }
 
 resource "libvirt_volume" "app_ubuntu2204-qcow2" {
@@ -159,6 +164,10 @@ resource "libvirt_cloudinit_disk" "db_commoninit" {
   count = length(var.db_hostname)
   name = "${var.db_hostname[count.index]}-commoninit.iso"
   user_data = data.template_file.db_user_data[count.index].rendered
+  network_config =   templatefile("${path.module}/network_config.cfg", {
+     interface = var.interface
+     ip_addr   = var.db_ips[count.index]
+  })
 }
 
 resource "libvirt_volume" "db_ubuntu2204-qcow2" {
