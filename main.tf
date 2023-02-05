@@ -23,11 +23,16 @@ provider "libvirt" {
 }
 
 provider "template" {
-  # Configuration options
+
 }
 
 data "template_file" "user_data" {
+  count = length(var.hostname)
   template = file("${path.module}/cloud_init.cfg")
+  vars = {
+    hostname = element(var.hostname, count.index)
+    fqdn = "${var.hostname[count.index]}.${var.domain}"
+  }
 }
 
 resource "random_pet" "this" {
@@ -35,34 +40,37 @@ resource "random_pet" "this" {
 }
 
 resource "libvirt_cloudinit_disk" "commoninit" {
-  name      = "commoninit.iso"
-  user_data = data.template_file.user_data.rendered
+  count = length(var.hostname)
+  name = "${var.hostname[count.index]}-commoninit.iso"
+  user_data = data.template_file.user_data[count.index].rendered
 }
 
 resource "libvirt_volume" "ubuntu2204-qcow2" {
-  name = var.volume_name
-  pool = "default" # List storage pools using virsh pool-list
-  #source = "https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud.qcow2"
-  source = "/opt/kvm_images/jammy-server-cloudimg-amd64.img"
+  count = length(var.hostname)
+  name = "ubuntu2204-qcow2.${var.hostname[count.index]}"
+  pool = "default"
+  source = var.img_path
   format = "qcow2"
 }
 
 # Define KVM domain to create
 resource "libvirt_domain" "ubuntu2204" {
-  name = var.name
+  count = length(var.hostname)
+  name = "${var.hostname[count.index]}"
   memory = "2048"
   vcpu   = 2
   qemu_agent  = "true"
   
   network_interface {
-    network_name = "default" # List networks with virsh net-list
+    network_name = "default"
+    addresses    = [var.ips[count.index]]
   }
 
   disk {
-    volume_id = "${libvirt_volume.ubuntu2204-qcow2.id}"
+    volume_id = element(libvirt_volume.ubuntu2204-qcow2.*.id, count.index)
   }
 
-  cloudinit = "${libvirt_cloudinit_disk.commoninit.id}"
+  cloudinit = libvirt_cloudinit_disk.commoninit[count.index].id
 
   console {
     type = "pty"
@@ -77,7 +85,6 @@ resource "libvirt_domain" "ubuntu2204" {
   }
 }
 
-# Output Server IP
-# output "ip" {
-#   value = "${libvirt_domain.centos7.network_interface.0.addresses.0}"
-# }
+output "ip" {
+  value = libvirt_domain.ubuntu2204.*.network_interface.0.addresses
+}
