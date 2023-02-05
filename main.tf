@@ -4,6 +4,10 @@ terraform {
       source = "dmacvicar/libvirt"
       version = "0.7.1"
     }
+    template = {
+      source = "hashicorp/template"
+      version = "2.2.0"
+    }
   }
 
   backend "s3" {
@@ -18,17 +22,34 @@ provider "libvirt" {
   uri = "qemu+ssh://emrah@kvmhost.example.com:53330/system"    
 }
 
-resource "libvirt_volume" "centos7-qcow2" {
-  name = "centos7.qcow2"
+provider "template" {
+  # Configuration options
+}
+
+data "template_file" "user_data" {
+  template = file("${path.module}/cloud_init.cfg")
+}
+
+resource "random_pet" "this" {
+  length = 2
+}
+
+resource "libvirt_cloudinit_disk" "commoninit" {
+  name      = "commoninit.iso"
+  user_data = data.template_file.user_data.rendered
+}
+
+resource "libvirt_volume" "ubuntu2204-qcow2" {
+  name = var.volume_name
   pool = "default" # List storage pools using virsh pool-list
   #source = "https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud.qcow2"
-  source = "/opt/kvm_images/CentOS-7-x86_64-GenericCloud.qcow2"
+  source = "/opt/kvm_images/jammy-server-cloudimg-amd64.img"
   format = "qcow2"
 }
 
 # Define KVM domain to create
-resource "libvirt_domain" "centos7" {
-  name   = "centos7"
+resource "libvirt_domain" "ubuntu2204" {
+  name = var.name
   memory = "2048"
   vcpu   = 2
   qemu_agent  = "true"
@@ -38,8 +59,10 @@ resource "libvirt_domain" "centos7" {
   }
 
   disk {
-    volume_id = "${libvirt_volume.centos7-qcow2.id}"
+    volume_id = "${libvirt_volume.ubuntu2204-qcow2.id}"
   }
+
+  cloudinit = "${libvirt_cloudinit_disk.commoninit.id}"
 
   console {
     type = "pty"
