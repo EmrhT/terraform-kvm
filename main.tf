@@ -22,28 +22,15 @@ provider "libvirt" {
   uri = "qemu+ssh://emrah@kvmhost.example.com:53330/system"    
 }
 
-provider "template" {
-}
-
-resource "random_pet" "this" {
-  length = 2
-}
-
 
 # Load Balancers
-data "template_file" "lb_user_data" {
-  count = length(var.lb_hostname)
-  template = file("${path.module}/cloud_init.cfg")
-  vars = {
-    hostname = element(var.lb_hostname, count.index)
-    fqdn = "${var.lb_hostname[count.index]}.${var.domain}"
-  }
-}
-
 resource "libvirt_cloudinit_disk" "lb_commoninit" {
   count = length(var.lb_hostname)
   name = "${var.lb_hostname[count.index]}-commoninit.iso"
-  user_data = data.template_file.lb_user_data[count.index].rendered
+  user_data = templatefile("${path.module}/cloud_init.cfg", {
+    hostname = var.lb_hostname[count.index]
+    fqdn   = "${var.lb_hostname[count.index]}.${var.domain}"
+  })
   network_config =   templatefile("${path.module}/network_config.cfg", {
      interface = var.interface
      ip_addr   = var.lb_ips[count.index]
@@ -91,19 +78,13 @@ resource "libvirt_domain" "load_balancer" {
 
 
 # application servers
-data "template_file" "app_user_data" {
-  count = length(var.app_hostname)
-  template = file("${path.module}/cloud_init.cfg")
-  vars = {
-    hostname = element(var.app_hostname, count.index)
-    fqdn = "${var.app_hostname[count.index]}.${var.domain}"
-  }
-}
-
 resource "libvirt_cloudinit_disk" "app_commoninit" {
   count = length(var.app_hostname)
   name = "${var.app_hostname[count.index]}-commoninit.iso"
-  user_data = data.template_file.app_user_data[count.index].rendered
+  user_data = templatefile("${path.module}/cloud_init.cfg", {
+    hostname = var.app_hostname[count.index]
+    fqdn   = "${var.app_hostname[count.index]}.${var.domain}"
+  })
   network_config =   templatefile("${path.module}/network_config.cfg", {
     interface = var.interface
     ip_addr   = var.app_ips[count.index]
@@ -151,19 +132,13 @@ resource "libvirt_domain" "application_server" {
 
 
 # database servers
-data "template_file" "db_user_data" {
-  count = length(var.db_hostname)
-  template = file("${path.module}/cloud_init.cfg")
-  vars = {
-    hostname = element(var.db_hostname, count.index)
-    fqdn = "${var.db_hostname[count.index]}.${var.domain}"
-  }
-}
-
 resource "libvirt_cloudinit_disk" "db_commoninit" {
   count = length(var.db_hostname)
   name = "${var.db_hostname[count.index]}-commoninit.iso"
-  user_data = data.template_file.db_user_data[count.index].rendered
+  user_data = templatefile("${path.module}/cloud_init.cfg", {
+    hostname = var.db_hostname[count.index]
+    fqdn   = "${var.db_hostname[count.index]}.${var.domain}"
+  })
   network_config =   templatefile("${path.module}/network_config.cfg", {
      interface = var.interface
      ip_addr   = var.db_ips[count.index]
