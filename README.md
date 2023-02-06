@@ -23,3 +23,6 @@ This repo provides a testbed where an on-prem KVM-based virtual environment is p
 3. Within seconds, arbitrary number (bound with your resources of course) of VMs are provisioned, modified to your desired state or destroyed.
 
 [Screencast.webm](https://user-images.githubusercontent.com/33878173/217064546-77e3cb4c-fe62-4161-9f6d-4dc8c94f72b9.webm)
+
+## What's Next?
+What you need with the infrastructure! Another IaC tool, Ansible would be nice to install and configure an application. 
