@@ -1,5 +1,5 @@
 ### Automation of Provisioning with Terraform on Libvirt/KVM
-This repo provides a testbed where an on-prem KVM-based virtual environment is present and Terraform being utilised for automated provisioning.
+This repo provides a testbed where an on-prem KVM-based virtual environment is present and Terraform being utilised for automated provisioning. A medium story with more detailed discussion is here. --> https://medium.com/@emrah-t/provisioning-automation-with-terraform-on-libvirt-and-kvm-ba6fa177ffea
 
 ## Prerequisites
 1. A Linux computer (VM or physical) with the required KVM/libvirt components installed (kvmhost). --> https://linuxhint.com/install-kvm-ubuntu-22-04/
