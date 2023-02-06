@@ -14,9 +14,9 @@ This repo provides a testbed where an on-prem KVM-based virtual environment is p
 5. Variables are provided from variables.tf.
 6. network_config.cfg and cloud_init.cfg are the files for cloudinit where former is for network config and latter for config such as user creation and access.
 
+![image](https://user-images.githubusercontent.com/33878173/217013985-918ed885-224b-4dcf-973c-8a54f16d739a.png)
+
 ## Execution
 1. "Terraform validate & init & plan & apply & destroy" lifecycle applies.
 2. Beware that some changes in the config (such as CPU count) requires destroy&recreate after "terraform apply" whereas some can be handled in-place. Luckily, Terraform is smart enough to deal with it.
 
-
-![image](https://user-images.githubusercontent.com/33878173/217011799-40b4439c-033d-455f-8358-4f084a34bbc3.png)
